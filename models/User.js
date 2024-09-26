@@ -20,7 +20,8 @@ const UserSchema = new mongoose.Schema({
     },
     phoneNumber: {
         type: String,
-        required: [true, 'Phone number is required']
+        required: [true, 'Phone number is required'],
+        unique: true,
     },
     isVerified: {
         type: Boolean,
