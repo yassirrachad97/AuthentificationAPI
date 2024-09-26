@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const validator = require('validator');
 
 // Définir le schéma utilisateur
 const UserSchema = new mongoose.Schema({
@@ -12,6 +13,7 @@ const UserSchema = new mongoose.Schema({
         required: [true, 'Email is required'],
         unique: true,
         lowercase: true,
+        validate: [validator.isEmail, 'Please provide a valid email address']
     },
     password: {
         type: String,
@@ -27,6 +29,10 @@ const UserSchema = new mongoose.Schema({
         type: Boolean,
         default: false 
     },
+    verificationDate: {
+        type: Date,
+        default: null
+    },    
     roles: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Role' // Référence au modèle Role

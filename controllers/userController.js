@@ -2,6 +2,10 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
+const sendEmail = require('../utils/sendEmail'); // Ajustez le chemin selon votre structure de projet
+
+
+
 
 exports.register = async (req, res) => {
     const { username, email, password, phoneNumber } = req.body;
@@ -24,27 +28,14 @@ exports.register = async (req, res) => {
 
         await user.save();
 
-        // Générer un JWT
+        // Generate a JWT for confirmation
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-        // Envoyer un email avec le lien de connexion
-        const transporter = nodemailer.createTransport({
-            host: 'your-smtp-host', // Remplacez par votre hôte SMTP
-            port: 587, // Port SMTP
-            auth: {
-                user: process.env.MAIL_USER, // Votre email
-                pass: process.env.MAIL_PASS, // Votre mot de passe
-            },
-        });
+        // Send the email
+        const subject = 'Confirmation d\'inscription';
+        const text = `Merci pour votre inscription ! Vous pouvez vous connecter en cliquant sur le lien suivant : http://${process.env.APP_HOST}/api/auth/login?token=${token}`;
 
-        const mailOptions = {
-            from: process.env.MAIL_FROM, // L'adresse d'envoi
-            to: email, // L'adresse de destination
-            subject: 'Confirmation d\'inscription',
-            text: `Merci pour votre inscription ! Vous pouvez vous connecter en cliquant sur le lien suivant : http://localhost:3000/api/auth/login?token=${token}`,
-        };
-
-        await transporter.sendMail(mailOptions);
+        await sendEmail(user.email, subject, text);
 
         res.status(201).json({ message: 'User registered successfully, please check your email for the login link' });
     } catch (err) {
@@ -52,7 +43,6 @@ exports.register = async (req, res) => {
         res.status(500).send('Server error');
     }
 };
-
 
 exports.login = async (req, res) => {
     const { email, password } = req.body;
