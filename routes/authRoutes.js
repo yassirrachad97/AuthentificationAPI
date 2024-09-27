@@ -1,10 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { register, login } = require('../controllers/userController');
+const { register, login, verifyEmail, resendVerificationLink } = require('../controllers/userController');
+const validateLogin = require('../middlewares/validateLogin');
 const validateUser = require('../middlewares/validateUser');
 
 router.post('/register',validateUser, register);
 
-router.post('/login', validateUser, login);
+router.post('/login', validateLogin, login);
 
+router.get('/verify/:token', verifyEmail);
+router.post('/resend-verification', resendVerificationLink);
 module.exports = router;
