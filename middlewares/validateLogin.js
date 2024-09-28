@@ -1,4 +1,4 @@
-// middlewares/validateLogin.js
+
 const loginValidation = require('../validations/loginValidation');
 
 const validateLogin = (req, res, next) => {
