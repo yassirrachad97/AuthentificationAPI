@@ -1,4 +1,4 @@
-// middlewares/validateUser.js
+
 const userValidation = require('../validations/userValidation');
 
 const validateUser = (req, res, next) => {
@@ -6,7 +6,7 @@ const validateUser = (req, res, next) => {
 
     if (error) {
         return res.status(400).json({
-            errors: error.details.map(err => err.message), // Renvoyer les messages d'erreur
+            errors: error.details.map(err => err.message), 
         });
     }
 
