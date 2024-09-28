@@ -40,7 +40,13 @@ const UserSchema = new mongoose.Schema({
     permissions: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Permission' // Référence au modèle Permission
-    }]
+    }],
+    otp: {
+        type: String, // Stocke le code OTP
+    },
+    otpExpires: {
+        type: Date, // Stocke la date d'expiration de l'OTP
+    }
 }, { timestamps: true });
 
 const User = mongoose.model('User', UserSchema);
