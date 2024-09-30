@@ -35,17 +35,17 @@ const UserSchema = new mongoose.Schema({
     },    
     roles: [{
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Role' // Référence au modèle Role
+        ref: 'Role'
     }],
     permissions: [{
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Permission' // Référence au modèle Permission
+        ref: 'Permission' 
     }],
     otp: {
-        type: String, // Stocke le code OTP
+        type: String, 
     },
     otpExpires: {
-        type: Date, // Stocke la date d'expiration de l'OTP
+        type: Date, 
     }
 }, { timestamps: true });
 

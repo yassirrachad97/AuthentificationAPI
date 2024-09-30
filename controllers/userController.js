@@ -1,8 +1,8 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-const sendEmail = require('../utils/sendEmail'); // Ajustez le chemin selon votre structure de projet
+// const nodemailer = require('nodemailer');
+const sendEmail = require('../utils/sendEmail'); 
 
 
 exports.verifyEmail = async (req, res) => {
