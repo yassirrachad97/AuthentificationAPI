@@ -1,3 +1,4 @@
+const { string } = require('joi');
 const mongoose = require('mongoose');
 const validator = require('validator');
 
@@ -46,7 +47,13 @@ const UserSchema = new mongoose.Schema({
     },
     otpExpires: {
         type: Date, 
-    }
+    },
+    device: [{
+
+        userAgent: String, 
+       isVerified: {type: Boolean, default: false}
+
+    }]
 }, { timestamps: true });
 
 const User = mongoose.model('User', UserSchema);

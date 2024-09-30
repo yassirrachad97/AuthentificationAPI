@@ -24,11 +24,9 @@ exports.requestPasswordReset = async (req, res) => {
         if (!user.isVerified) {
             return res.status(400).json({ message: 'Please verify your email first.' });
         }
+        const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' }); 
 
-        // Générer un JWT pour la réinitialisation de mot de passe
-        const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' }); // Valide pour 15 minutes
 
-        // Envoyer l'e-mail avec le lien de réinitialisation (contenant le JWT)
         const resetLink = `http://${process.env.APP_HOST}/api/auth/reset-password/${resetToken}`;
         const subject = 'Réinitialisation de mot de passe';
         const text = `Cliquez sur ce lien pour réinitialiser votre mot de passe : ${resetLink}`;
@@ -46,25 +44,24 @@ exports.verifyResetTokenAndGenerateOTP = async (req, res) => {
     const { token } = req.params;
 
     try {
-        // Vérifier le JWT pour récupérer l'ID de l'utilisateur
+       
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const userId = decoded.id;
 
-        // Trouver l'utilisateur par ID
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        // Générer un nouvel OTP
+       
         const otp = generateOTP();
 
-        // Stocker l'OTP et sa date d'expiration
+ 
         user.otp = otp;
-        user.otpExpires = Date.now() + 5 * 60 * 1000; // Expire dans 5 minutes
+        user.otpExpires = Date.now() + 5 * 60 * 1000; 
         await user.save();
 
-        // Envoyer l'OTP par e-mail
+  
         const subject = 'Votre code OTP pour la réinitialisation du mot de passe';
         const text = `Votre code OTP est ${otp}. Il est valide pendant 5 minutes.`;
 
@@ -85,13 +82,12 @@ exports.resetPasswordWithOTP = async (req, res) => {
     const { email, otp, newPassword } = req.body;
 
     try {
-        // Trouver l'utilisateur par e-mail
+    
         const user = await User.findOne({ email });
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        // Vérifier l'OTP
         if (user.otp !== otp) {
             return res.status(400).json({ message: 'Invalid OTP' });
         }
@@ -99,11 +95,11 @@ exports.resetPasswordWithOTP = async (req, res) => {
             return res.status(400).json({ message: 'OTP has expired' });
         }
 
-        // Hacher le nouveau mot de passe
+      
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(newPassword, salt);
 
-        // Supprimer l'OTP et la date d'expiration après réinitialisation
+   
         user.otp = undefined;
         user.otpExpires = undefined;
         await user.save();
