@@ -53,7 +53,19 @@ const UserSchema = new mongoose.Schema({
         userAgent: String, 
        isVerified: {type: Boolean, default: false}
 
-    }]
+    }],
+    failedLoginAttempts: {
+        type: Number,
+        default: 0
+    },
+    isAccountLocked: {
+        type: Boolean,
+        default: false
+    },
+    lockUntil: {
+        type: Date,
+        default: null
+    }
 }, { timestamps: true });
 
 const User = mongoose.model('User', UserSchema);

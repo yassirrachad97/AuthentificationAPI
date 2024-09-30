@@ -120,8 +120,26 @@ exports.login = async (req, res) => {
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
+            user.failedLoginAttempts += 1;
+            // Si plus de 5 tentatives échouées, verrouiller le compte
+            if (user.failedLoginAttempts >= 5) {
+                user.isAccountLocked = true;
+                user.lockUntil = Date.now() + 30 * 60 * 1000; // 30 minutes de verrouillage
+                await user.save();
+
+                // Envoyer un email à l'utilisateur pour l'informer du verrouillage
+                const subject = 'Alerte de sécurité : Tentatives de connexion échouées';
+                const text = `Bonjour ${user.username},\n\nNous avons détecté plusieurs tentatives de connexion échouées à votre compte.\nVotre compte a été temporairement verrouillé pour des raisons de sécurité. Vous pouvez réessayer après 30 minutes.\n\nSi ce n'était pas vous, nous vous recommandons de changer votre mot de passe immédiatement.`;
+                await sendEmail(user.email, subject, text);
+
+                return res.status(403).json({ message: 'Account locked due to too many failed login attempts. Please check your email.' });
+            }
+            await user.save();
             return res.status(400).json({ message: 'Invalid credentials' });
         }
+        user.failedLoginAttempts = 0;
+        user.isAccountLocked = false;
+        user.lockUntil = null;
 
         userAgent = req.headers['user-agent'];
         const currentDevice = {
@@ -153,7 +171,7 @@ exports.login = async (req, res) => {
 
             return res.status(200).json({ message: 'OTP sent to your email. Please verify to proceed.' });
         }
-
+        await user.save();
         return res.json({message:'Login successful', token, user: { id: user._id, username: user.username, email: user.email } });
      
     } catch (err) {
