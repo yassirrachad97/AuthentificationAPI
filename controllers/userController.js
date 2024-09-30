@@ -1,8 +1,8 @@
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
-const sendEmail = require('../utils/sendEmail'); // Ajustez le chemin selon votre structure de projet
+// const nodemailer = require('nodemailer');
+const sendEmail = require('../utils/sendEmail'); 
 
 
 exports.verifyEmail = async (req, res) => {
@@ -75,24 +75,25 @@ exports.register = async (req, res) => {
         if (user) {
             return res.status(400).json({ message: 'User already exists' });
         }
-
+        userAgent = req.headers['user-agent'];
         user = new User({
             username,
             email,
             password,
             phoneNumber,
-            isVerified: false 
+            isVerified: false
         });
+        user.device.push({userAgent,
+            isVerified: true
 
+        });
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(password, salt);
 
         await user.save();
-
-        // Generate a JWT for confirmation
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '5m' });
 
-        // Send the email
+       
         const subject = 'Confirmation d\'inscription';
         const text = `Merci pour votre inscription ! Vous pouvez vous connecter en cliquant sur le lien suivant : http://${process.env.APP_HOST}/api/auth/verify/${token}`;
 
@@ -122,24 +123,45 @@ exports.login = async (req, res) => {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
-        const otp = generateOTP();
+        userAgent = req.headers['user-agent'];
+        const currentDevice = {
+            userAgent
+        };
+      
+        const existingDevice = user.device.find(
+            device => device.userAgent === currentDevice.userAgent
+        );
 
-        // Save OTP to the user record and set expiration time (5 minutes)
-        user.otp = otp;
-        user.otpExpires = Date.now() + 5 * 60 * 1000; // OTP expires in 5 minutes
-        await user.save();
+       
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-        // Send OTP via email or SMS
-        const subject = 'Your OTP Code';
-        const text = `Your OTP code is ${otp}. It is valid for 5 minutes.`;
-        await sendEmail(user.email, subject, text); // Or send via SMS using Twilio or another provider
+        // Check if device is new or unverified, then send OTP
+        if (!existingDevice || !existingDevice.isVerified) {
+            const otp = generateOTP();
+             
+            const subject = 'Your OTP Code';
+            const text = `Your OTP code is ${otp}. It is valid for 5 minutes.`;
+            await sendEmail(user.email, subject, text); 
 
-        res.status(200).json({ message: 'OTP sent to your email. Please verify to proceed.' });
+            user.otp = otp;
+            user.otpExpires = Date.now() + 5 * 60 * 1000; 
+            user.device.push({
+              userAgent: currentDevice.userAgent,
+              isVerified: false,
+            });
+            await user.save();
+
+            return res.status(200).json({ message: 'OTP sent to your email. Please verify to proceed.' });
+        }
+
+        return res.json({message:'Login successful', token, user: { id: user._id, username: user.username, email: user.email } });
+     
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');
     }
 };
+
 const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString(); 
 };
@@ -148,13 +170,11 @@ exports.verifyOTP = async (req, res) => {
     const { email, otp } = req.body;
 
     try {
-        // Find the user by email
         let user = await User.findOne({ email });
         if (!user) {
             return res.status(400).json({ message: 'User not found' });
         }
 
-        // Check if OTP matches and hasn't expired
         if (user.otp !== otp) {
             return res.status(400).json({ message: 'Invalid OTP' });
         }
@@ -162,15 +182,20 @@ exports.verifyOTP = async (req, res) => {
             return res.status(400).json({ message: 'OTP has expired' });
         }
 
-        // OTP is valid, generate JWT token
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-
+        const deviceIndex = user.device.findIndex(
+            (device) => device.userAgent === userAgent
+          );
+          if (deviceIndex === -1) {
+            return res.status(400).json({ message: 'Appareil non trouvé' });
+          };
         // Clear the OTP
+        user.device[deviceIndex].isVerified = true;
         user.otp = undefined;
         user.otpExpires = undefined;
         await user.save();
 
-        res.json({ token, user: { id: user._id, username: user.username, email: user.email } });
+        res.json({message:'login succefull', token, user: { id: user._id, username: user.username, email: user.email } });
 
     } catch (err) {
         console.error(err.message);
