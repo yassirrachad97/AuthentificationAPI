@@ -175,7 +175,7 @@ exports.login = async (req, res) => {
             await sendEmail(user.email, subject, text);
 
             user.otp = otp;
-            user.otpExpires = Date.now() + 5 * 60 * 1000; // expire in 5 minutes
+            user.otpExpires = Date.now() + 5 * 60 * 1000; 
             await user.save();
 
             return res.status(200).json({ message: 'OTP sent to your email. Please verify to proceed.' });
