@@ -151,27 +151,38 @@ exports.login = async (req, res) => {
         );
 
        
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-
+     
         // Check if device is new or unverified, then send OTP
-        if (!existingDevice || !existingDevice.isVerified) {
+        if (!existingDevice) {
             const otp = generateOTP();
-             
             const subject = 'Your OTP Code';
             const text = `Your OTP code is ${otp}. It is valid for 5 minutes.`;
-            await sendEmail(user.email, subject, text); 
+            await sendEmail(user.email, subject, text);
 
             user.otp = otp;
-            user.otpExpires = Date.now() + 5 * 60 * 1000; 
+            user.otpExpires = Date.now() + 5 * 60 * 1000;
             user.device.push({
-              userAgent: currentDevice.userAgent,
-              isVerified: false,
+                userAgent: userAgent,
+                isVerified: false,
             });
             await user.save();
 
             return res.status(200).json({ message: 'OTP sent to your email. Please verify to proceed.' });
-        }
-        await user.save();
+        }else if (!existingDevice.isVerified) {
+            const otp = generateOTP();
+            const subject = 'Your OTP Code';
+            const text = `Your OTP code is ${otp}. It is valid for 5 minutes.`;
+            await sendEmail(user.email, subject, text);
+
+            user.otp = otp;
+            user.otpExpires = Date.now() + 5 * 60 * 1000; // expire in 5 minutes
+            await user.save();
+
+            return res.status(200).json({ message: 'OTP sent to your email. Please verify to proceed.' });
+        };
+        // await user.save();
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
         return res.json({message:'Login successful', token, user: { id: user._id, username: user.username, email: user.email } });
      
     } catch (err) {
