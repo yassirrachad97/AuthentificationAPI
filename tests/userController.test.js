@@ -4,6 +4,7 @@ const User = require('../models/User');
 const authRoutes = require('../routes/authRoutes');
 const sendEmail = require('../utils/sendEmail'); // Importer sendEmail pour simulation
 require('dotenv').config();
+const bcrypt = require('bcryptjs');
 
 const app = express();
 app.use(express.json());
@@ -92,5 +93,118 @@ describe('POST /api/auth/register', () => {
         expect(res.statusCode).toEqual(500);
         expect(res.text).toEqual('Server error');
         expect(sendEmail).not.toHaveBeenCalled(); // Vérifie que sendEmail n'a pas été appelé
+    });
+});
+
+
+
+describe('POST /api/auth/login', () => {
+
+    beforeEach(() => {
+        jest.clearAllMocks(); // Réinitialiser les mocks avant chaque test
+    });
+
+    it('should log in a user with valid credentials', async () => {
+        // Simuler un utilisateur existant
+        User.findOne.mockResolvedValue({
+            email: 'test@example.com',
+            password: await bcrypt.hash('password123', 10), // Mot de passe haché
+            isVerified: true,
+            device: [],
+            save: jest.fn(),
+        });
+
+        const res = await request(app)
+            .post('/api/auth/login')
+            .send({
+                email: 'test@example.com',
+                password: 'password123'
+            });
+
+        expect(res.statusCode).toEqual(200);
+        expect(res.body.message).toEqual('Login successful');
+        expect(User.findOne).toHaveBeenCalledWith({ email: 'test@example.com' });
+    });
+
+    it('should return 400 if credentials are invalid', async () => {
+        // Simuler un utilisateur avec des identifiants incorrects
+        User.findOne.mockResolvedValue({
+            email: 'test@example.com',
+            password: await bcrypt.hash('wrongpassword', 10), // Mot de passe incorrect
+            isVerified: true,
+            device: [{ userAgent: 'test-agent', isVerified: true }],
+            failedLoginAttempts: 0,
+            save: jest.fn(),
+        });
+
+        const res = await request(app)
+            .post('/api/auth/login')
+            .send({
+                email: 'test@example.com',
+                password: 'incorrectpassword'
+            });
+
+        expect(res.statusCode).toEqual(400);
+        expect(res.body.message).toEqual('Invalid credentials');
+        expect(User.findOne).toHaveBeenCalledWith({ email: 'test@example.com' });
+    });
+
+    it('should return 400 if the user is not verified', async () => {
+        // Simuler un utilisateur non vérifié
+        User.findOne.mockResolvedValue({
+            email: 'test@example.com',
+            password: await bcrypt.hash('password123', 10),
+            isVerified: false, // Utilisateur non vérifié
+            device: [],
+            save: jest.fn(),
+        });
+
+        const res = await request(app)
+            .post('/api/auth/login')
+            .send({
+                email: 'test@example.com',
+                password: 'password123'
+            });
+
+        expect(res.statusCode).toEqual(400);
+        expect(res.body.message).toEqual('Please verify your email before logging in');
+        expect(User.findOne).toHaveBeenCalledWith({ email: 'test@example.com' });
+    });
+
+    it('should send OTP if the user logs in from a new device', async () => {
+        // Simuler un utilisateur vérifié
+        User.findOne.mockResolvedValue({
+            email: 'test@example.com',
+            password: await bcrypt.hash('password123', 10),
+            isVerified: true,
+            device: [],
+            save: jest.fn(),
+        });
+
+        const res = await request(app)
+            .post('/api/auth/login')
+            .send({
+                email: 'test@example.com',
+                password: 'password123'
+            });
+
+        expect(res.statusCode).toEqual(200);
+        expect(res.body.message).toEqual('OTP sent to your email. Please verify to proceed.');
+        expect(User.findOne).toHaveBeenCalledWith({ email: 'test@example.com' });
+        expect(sendEmail).toHaveBeenCalled(); // Vérifie que sendEmail a été appelé pour l'envoi de l'OTP
+    });
+
+    it('should return 500 if there is a server error during login', async () => {
+        User.findOne.mockRejectedValue(new Error('Server error')); // Simule une erreur serveur
+
+        const res = await request(app)
+            .post('/api/auth/login')
+            .send({
+                email: 'test@example.com',
+                password: 'password123'
+            });
+
+        expect(res.statusCode).toEqual(500);
+        expect(res.text).toEqual('Server error');
     });
 });
