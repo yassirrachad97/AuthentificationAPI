@@ -1,7 +1,7 @@
 // utils/sendEmail.js
 const nodemailer = require('nodemailer');
 
-const sendEmail = async (to, subject, text) => {
+const sendEmail = async (to, subject, htmlContent) => {
     if (!to) {
         throw new Error('No recipients defined');
     }
@@ -17,10 +17,10 @@ const sendEmail = async (to, subject, text) => {
     });
 
     const mailOptions = {
-        from: process.env.MAIL_FROM, 
+        from: process.env.MAIL_FROM,
         to,
         subject,
-        text,
+        html: htmlContent, 
     };
 
     await transporter.sendMail(mailOptions);

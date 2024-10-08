@@ -3,35 +3,33 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 // const nodemailer = require('nodemailer');
 const sendEmail = require('../utils/sendEmail'); 
-
+const fs = require('fs');const path = require('path');
 
 exports.verifyEmail = async (req, res) => {
     const token = req.params.token;
 
     try {
-        // Verify the token
+     
+        
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const userId = decoded.id;
 
-        // Find the user by ID
+      
         let user = await User.findById(userId);
         if (!user) {
             return res.status(400).json({ message: 'Invalid verification link or user does not exist' });
         }
 
-        // Check if the user is already verified
         if (user.isVerified) {
             return res.status(400).json({ message: 'User already verified' });
         }
 
-        // Set the user as verified
         user.isVerified = true;
         user.verificationDate = new Date(); 
         await user.save();
 
         res.status(200).json({ message: 'Email verified successfully!' });
     } catch (err) {
-
         if (err.name === 'TokenExpiredError') {
             return res.status(400).json({ message: 'Verification session has expired. Please request a new verification email.' });
         }
@@ -39,6 +37,7 @@ exports.verifyEmail = async (req, res) => {
         res.status(500).send('Server error');
     }
 };
+
 
 exports.resendVerificationLink = async (req, res) => {
     const { email } = req.body;
@@ -52,12 +51,24 @@ exports.resendVerificationLink = async (req, res) => {
         if (user.isVerified) {
             return res.status(400).json({ message: 'User already verified' });
         }
+
+        
+
+
+
+
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '5m' });
+        const verificationLink = `${process.env.APP_HOST}/api/auth/verify/${token}`;
+
+       
+        const templatePath = path.join(__dirname, '../templates/emailTemplate.html');
+        let emailHtml = fs.readFileSync(templatePath, 'utf-8');
+
+       
+        emailHtml = emailHtml.replace('{{verification_link}}', verificationLink);
 
         const subject = 'Nouveau lien de vérification';
-        const text = `Voici votre nouveau lien de vérification : http://${process.env.APP_HOST}/api/auth/verify/${token}`;
-
-        await sendEmail(user.email, subject, text);
+        await sendEmail(user.email, subject, emailHtml); 
 
         res.status(200).json({ message: 'Verification link sent. Please check your email.' });
     } catch (err) {
@@ -75,6 +86,7 @@ exports.register = async (req, res) => {
         if (user) {
             return res.status(400).json({ message: 'User already exists' });
         }
+
         userAgent = req.headers['user-agent'];
         user = new User({
             username,
@@ -83,21 +95,22 @@ exports.register = async (req, res) => {
             phoneNumber,
             isVerified: false
         });
-        user.device.push({userAgent,
-            isVerified: true
 
-        });
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(password, salt);
 
         await user.save();
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '5m' });
+        const verificationLink = `${process.env.APP_HOST}/api/auth/verify/${token}`;
 
        
-        const subject = 'Confirmation d\'inscription';
-        const text = `Merci pour votre inscription ! Vous pouvez vous connecter en cliquant sur le lien suivant : http://${process.env.APP_HOST}/api/auth/verify/${token}`;
+        const templatePath = path.join(__dirname, '../templates/emailTemplate.html');
+        let emailHtml = fs.readFileSync(templatePath, 'utf-8');
 
-        await sendEmail(user.email, subject, text);
+        emailHtml = emailHtml.replace('{{verification_link}}', verificationLink);
+
+        const subject = 'Confirmation d\'inscription';
+        await sendEmail(user.email, subject, emailHtml);
 
         res.status(201).json({ message: 'User registered successfully, please check your email for the login link' });
     } catch (err) {
