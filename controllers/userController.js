@@ -244,3 +244,30 @@ exports.verifyOTP = async (req, res) => {
         res.status(500).send('Server error');
     }
 };
+
+
+exports.resendOTP = async (req, res) => {
+    const { email } = req.body;
+
+    try {
+        let user = await User.findOne({ email });
+        if (!user) {
+            return res.status(400).json({ message: 'User not found' });
+        }
+
+        const otp = generateOTP();
+        const subject = 'Your new OTP Code';
+        const text = `Your OTP code is ${otp}. It is valid for 5 minutes.`;
+        
+        await sendEmail(user.email, subject, text);
+
+        user.otp = otp;
+        user.otpExpires = Date.now() + 5 * 60 * 1000;
+        await user.save();
+
+        return res.status(200).json({ message: 'A new OTP has been sent to your email.' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};
